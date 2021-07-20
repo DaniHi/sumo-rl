@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 
 from .traffic_signal import TrafficSignal
+from .induction_loops import InductionLoops
 
 
 class SumoEnvironment(MultiAgentEnv):
@@ -32,11 +33,12 @@ class SumoEnvironment(MultiAgentEnv):
     :single_agent: (bool) If true, it behaves like a regular gym.Env. Else, it behaves like a MultiagentEnv (https://github.com/ray-project/ray/blob/master/python/ray/rllib/env/multi_agent_env.py)
     """
 
-    def __init__(self, net_file, route_file, out_csv_name=None, use_gui=False, num_seconds=20000, max_depart_delay=100000,
+    def __init__(self, net_file, route_file, additional_file, out_csv_name=None, use_gui=False, num_seconds=20000, max_depart_delay=100000,
                  time_to_teleport=-1, delta_time=5, yellow_time=2, min_green=5, max_green=50, single_agent=False):
 
         self._net = net_file
         self._route = route_file
+        self._additional = additional_file
         self.use_gui = use_gui
         if self.use_gui:
             self._sumo_binary = sumolib.checkBinary('sumo-gui')
@@ -51,11 +53,16 @@ class SumoEnvironment(MultiAgentEnv):
         self.max_green = max_green
         self.yellow_time = yellow_time
 
-        traci.start([sumolib.checkBinary('sumo'), '-n', self._net])  # start only to retrieve information
+        traci.start([sumolib.checkBinary('sumo'), '-n', self._net, '-a', self._additional])  # start only to retrieve information
 
         self.single_agent = single_agent
         self.ts_ids = traci.trafficlight.getIDList()
         self.traffic_signals = {ts: TrafficSignal(self, ts, self.delta_time, self.yellow_time, self.min_green, self.max_green) for ts in self.ts_ids}
+
+        self.induction_ids = traci.inductionloop.getIDList()
+        print(self.induction_ids)
+        self.induction_loops = {il: InductionLoops(self, self.induction_ids[0], self.delta_time, 5) for il in self.induction_ids}
+
         self.vehicles = dict()
 
         self.reward_range = (-float('inf'), float('inf'))
@@ -78,6 +85,7 @@ class SumoEnvironment(MultiAgentEnv):
         sumo_cmd = [self._sumo_binary,
                      '-n', self._net,
                      '-r', self._route,
+                     '-a', self._additional,
                      '--max-depart-delay', str(self.max_depart_delay), 
                      '--waiting-time-memory', '10000',
                      '--time-to-teleport', str(self.time_to_teleport),
@@ -88,7 +96,8 @@ class SumoEnvironment(MultiAgentEnv):
         traci.start(sumo_cmd)
 
         self.traffic_signals = {ts: TrafficSignal(self, ts, self.delta_time, self.yellow_time, self.min_green, self.max_green) for ts in self.ts_ids}
-
+        self.induction_loops = {il: InductionLoops(self, il, self.delta_time, 5) for il in self.induction_ids}
+        print("Loops", traci.inductionloop.getAllSubscriptionResults())
         self.vehicles = dict()
 
         if self.single_agent:
@@ -127,6 +136,10 @@ class SumoEnvironment(MultiAgentEnv):
                     info = self._compute_step_info()
                     self.metrics.append(info)
 
+        for loop_id in self.induction_ids:
+            if self.induction_loops[loop_id].has_car():
+                print("Car passing on lane:", traci.inductionloop.getLaneID(loop_id))
+
         observations = self._compute_observations()
         rewards = self._compute_rewards()
         done = {'__all__': self.sim_step > self.sim_max_time}
@@ -150,6 +163,7 @@ class SumoEnvironment(MultiAgentEnv):
                 self.traffic_signals[ts].set_next_phase(action)
     
     def _compute_observations(self):
+        print(self.traffic_signals[self.ts_ids[0]].compute_observation())
         return {ts: self.traffic_signals[ts].compute_observation() for ts in self.ts_ids if self.traffic_signals[ts].time_to_act}
 
     def _compute_rewards(self):
