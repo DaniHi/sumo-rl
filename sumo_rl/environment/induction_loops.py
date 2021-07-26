@@ -13,13 +13,20 @@ import sumolib
 
 class InductionLoops:
 
-    def __init__(self, env, i_id, delta_time, min_length):
+    def __init__(self, env, i_id, delta_time, min_length, occupancy=70):
         self.env = env
         self.id = i_id
         self.delta_time = delta_time
         self.min_length = min_length
-        lane = traci.inductionloop.getLaneID(self.id)
-        results = traci.inductionloop.getTimeSinceDetection(self.id)
+        self.backlog_occupancy = occupancy
+        self.lane = traci.inductionloop.getLaneID(self.id)
 
-    def has_car(self):
+    def car_passing(self):
         return traci.inductionloop.getTimeSinceDetection(self.id) == 0.0
+
+    def occupancy(self):
+        return traci.inductionloop.getLastStepOccupancy(self.id)
+
+    def has_backlog(self):
+        return self.occupancy() > self.backlog_occupancy
+
