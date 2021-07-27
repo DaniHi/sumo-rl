@@ -21,12 +21,19 @@ class InductionLoops:
         self.backlog_occupancy = occupancy
         self.lane = traci.inductionloop.getLaneID(self.id)
 
+    def last_detection(self):
+        return traci.inductionloop.getTimeSinceDetection(self.id)
+
+    def car_on_detector(self):
+        return self.last_detection() == 0.0
+
     def car_passing(self):
-        return traci.inductionloop.getTimeSinceDetection(self.id) == 0.0
+        return self.last_detection() <= self.min_length
 
     def occupancy(self):
         return traci.inductionloop.getLastStepOccupancy(self.id)
 
     def has_backlog(self):
         return self.occupancy() > self.backlog_occupancy
+
 

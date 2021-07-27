@@ -60,7 +60,7 @@ class SumoEnvironment(MultiAgentEnv):
         self.traffic_signals = {ts: TrafficSignal(self, ts, self.delta_time, self.yellow_time, self.min_green, self.max_green) for ts in self.ts_ids}
 
         self.induction_ids = traci.inductionloop.getIDList()
-        self.induction_loops = {il: InductionLoops(self, il, self.delta_time, 5) for il in self.induction_ids}
+        self.induction_loops = {il: InductionLoops(self, il, self.delta_time, 2) for il in self.induction_ids}
 
         self.vehicles = dict()
 
@@ -137,8 +137,10 @@ class SumoEnvironment(MultiAgentEnv):
 
         for loop_id in self.induction_ids:
             induction_loop = self.induction_loops[loop_id]
+            print("Last detection:", induction_loop.last_detection())
             if induction_loop.car_passing():
                 print("Car passing on lane:", induction_loop.lane)
+
                 if induction_loop.has_backlog():
                     print("Approaching backlog on lane:", induction_loop.lane)
                     print("Induction loop occupancy of:", induction_loop.occupancy(), "\n")
