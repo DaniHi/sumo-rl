@@ -34,6 +34,7 @@ class TrafficSignal:
         self.lanes = list(dict.fromkeys(traci.trafficlight.getControlledLanes(self.id)))  # Remove duplicates and keep order
         self.out_lanes = [link[0][1] for link in traci.trafficlight.getControlledLinks(self.id) if link]
         self.out_lanes = list(set(self.out_lanes))
+        self.loops = []
 
         """
         Default observation space is a vector R^(#greenPhases + 2 * #lanes)
@@ -89,11 +90,12 @@ class TrafficSignal:
             self.time_since_last_phase_change = 0
     
     def compute_observation(self):
-        phase_id = [1 if self.phase//2 == i else 0 for i in range(self.num_green_phases)]  # one-hot encoding
-        #elapsed = self.traffic_signals[ts].time_on_phase / self.max_green
-        density = self.get_lanes_density()
-        queue = self.get_lanes_queue()
-        observation = np.array(phase_id + density + queue)
+        # phase_id = [1 if self.phase//2 == i else 0 for i in range(self.num_green_phases)]  # one-hot encoding
+        # #elapsed = self.traffic_signals[ts].time_on_phase / self.max_green
+        # density = self.get_lanes_density()
+        # queue = self.get_lanes_queue()
+        # observation = np.array(phase_id + density + queue)
+        observation = np.array([loop.compute_observation() for loop in self.loops]).flatten()
         return observation
             
     def compute_reward(self):
@@ -172,3 +174,6 @@ class TrafficSignal:
         for lane in self.lanes:
             veh_list += traci.lane.getLastStepVehicleIDs(lane)
         return veh_list
+
+    def add_loop(self, loop):
+        self.loops.append(loop)

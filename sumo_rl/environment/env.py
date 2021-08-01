@@ -22,6 +22,7 @@ class SumoEnvironment(MultiAgentEnv):
 
     :param net_file: (str) SUMO .net.xml file
     :param route_file: (str) SUMO .rou.xml file
+    :param additional_file: (str) SUMO .det
     :param phases: (traci.trafficlight.Phase list) Traffic Signal phases definition
     :param out_csv_name: (str) name of the .csv output with simulation results. If None no output is generated
     :param use_gui: (bool) Wheter to run SUMO simulation with GUI visualisation
@@ -58,12 +59,11 @@ class SumoEnvironment(MultiAgentEnv):
         self.single_agent = single_agent
         self.ts_ids = traci.trafficlight.getIDList()
         self.traffic_signals = {ts: TrafficSignal(self, ts, self.delta_time, self.yellow_time, self.min_green, self.max_green) for ts in self.ts_ids}
-
         self.induction_ids = traci.inductionloop.getIDList()
         self.induction_loops = {il: InductionLoops(self, il, self.delta_time, 2) for il in self.induction_ids}
-
+        self._add_loops_to_signal()
         self.vehicles = dict()
-
+        # Add loops to their corresponding trafic signal
         self.reward_range = (-float('inf'), float('inf'))
         self.metadata = {}
         self.spec = ''
@@ -73,6 +73,17 @@ class SumoEnvironment(MultiAgentEnv):
         self.out_csv_name = out_csv_name
 
         traci.close()
+
+    # Adds all induction loops to the corresponding traffic signal
+    def _add_loops_to_signal(self):
+        loops = self.induction_loops.values()
+        signals = self.traffic_signals.values()
+        for loop in loops:
+            loop_lane = loop.lane
+            for signal in signals:
+                if loop_lane in signal.lanes:
+                    signal.add_loop(loop)
+                    break
         
     def reset(self):
         if self.run != 0:
@@ -96,7 +107,7 @@ class SumoEnvironment(MultiAgentEnv):
 
         self.traffic_signals = {ts: TrafficSignal(self, ts, self.delta_time, self.yellow_time, self.min_green, self.max_green) for ts in self.ts_ids}
         self.induction_loops = {il: InductionLoops(self, il, self.delta_time, 5) for il in self.induction_ids}
-        print("Loops", traci.inductionloop.getAllSubscriptionResults())
+        self._add_loops_to_signal()
         self.vehicles = dict()
 
         if self.single_agent:
@@ -135,16 +146,6 @@ class SumoEnvironment(MultiAgentEnv):
                     info = self._compute_step_info()
                     self.metrics.append(info)
 
-        for loop_id in self.induction_ids:
-            induction_loop = self.induction_loops[loop_id]
-            print("Last detection:", induction_loop.last_detection())
-            if induction_loop.car_passing():
-                print("Car passing on lane:", induction_loop.lane)
-
-                if induction_loop.has_backlog():
-                    print("Approaching backlog on lane:", induction_loop.lane)
-                    print("Induction loop occupancy of:", induction_loop.occupancy(), "\n")
-
         observations = self._compute_observations()
         rewards = self._compute_rewards()
         done = {'__all__': self.sim_step > self.sim_max_time}
@@ -168,7 +169,6 @@ class SumoEnvironment(MultiAgentEnv):
                 self.traffic_signals[ts].set_next_phase(action)
     
     def _compute_observations(self):
-        print(self.traffic_signals[self.ts_ids[0]].compute_observation())
         return {ts: self.traffic_signals[ts].compute_observation() for ts in self.ts_ids if self.traffic_signals[ts].time_to_act}
 
     def _compute_rewards(self):

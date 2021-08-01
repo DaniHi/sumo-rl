@@ -1,5 +1,6 @@
 import os
 import sys
+import numpy as np
 from pathlib import Path
 
 if 'SUMO_HOME' in os.environ:
@@ -36,4 +37,5 @@ class InductionLoops:
     def has_backlog(self):
         return self.occupancy() > self.backlog_occupancy
 
-
+    def compute_observation(self):
+        return np.array([self.last_detection(), self.has_backlog()])
