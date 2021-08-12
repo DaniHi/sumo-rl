@@ -92,6 +92,11 @@ class SumoEnvironment(MultiAgentEnv):
         self.run += 1
         self.metrics = []
 
+        if self.use_gui:
+            self._sumo_binary = sumolib.checkBinary('sumo-gui')
+        else:
+            self._sumo_binary = sumolib.checkBinary('sumo')
+
         sumo_cmd = [self._sumo_binary,
                      '-n', self._net,
                      '-r', self._route,
