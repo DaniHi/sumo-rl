@@ -43,7 +43,7 @@ class TrafficSignal:
 
         Action space is which green phase is going to be open for the next delta_time seconds
         """
-        self.observation_space = spaces.Box(low=np.zeros(self.num_green_phases + 2*len(self.lanes)), high=np.ones(self.num_green_phases + 2*len(self.lanes)))
+        self.observation_space = spaces.Box(low=np.zeros(self.num_green_phases + 2*len(self.lanes) + 1), high=np.ones(self.num_green_phases + 2*len(self.lanes) + 1))
         self.discrete_observation_space = spaces.Tuple((
             spaces.Discrete(self.num_green_phases),                       # Green Phase
             #spaces.Discrete(self.max_green//self.delta_time),            # Elapsed time of phase
@@ -98,7 +98,6 @@ class TrafficSignal:
         observation = np.array([loop.compute_observation() for loop in self.loops]).flatten()
         observation = np.append(observation, phase_id)
         observation = np.append(observation, self.time_since_last_phase_change)
-        print(observation)
         return observation
             
     def compute_reward(self):
