@@ -102,6 +102,7 @@ class TrafficSignal:
             
     def compute_reward(self):
         self.last_reward = self._waiting_time_reward()
+        # print(self.last_reward)
         return self.last_reward
     
     def _pressure_reward(self):
@@ -119,6 +120,7 @@ class TrafficSignal:
     def _waiting_time_reward(self):
         ts_wait = sum(self.get_waiting_time_per_lane()) / 100.0
         reward = self.last_measure - ts_wait
+        reward = -reward
         self.last_measure = ts_wait
         return reward
 
@@ -132,9 +134,10 @@ class TrafficSignal:
         return reward
 
     def _waiting_time_reward3(self):
-        ts_wait = sum(self.get_waiting_time())
-        reward = -ts_wait
+        ts_wait = sum(self.get_waiting_time_per_lane())
+        reward = -(self.last_measure - ts_wait)
         self.last_measure = ts_wait
+        print(reward)
         return reward
 
     def get_waiting_time_per_lane(self):
